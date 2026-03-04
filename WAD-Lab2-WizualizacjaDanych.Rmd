@@ -1,0 +1,217 @@
+---
+title: "Wizualizacja Danych w R"
+output: html_document
+---
+
+# 1. Fundamenty
+
+## **ggplot2**
+
+Biblioteka `ggplot2` to podstawa wizualizacji w R — charakteryzuje się elegancką, zwięzłą składnią i posiada ogromne możliwości dostosowania wyglądu wykresów.
+
+```{r}
+library(ggplot2)
+
+x <- seq(0, 10, length.out = 100)
+y <- sin(x)
+df <- data.frame(x, y)
+
+ggplot(df, aes(x, y)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  labs(
+    title = "Prosty wykres Sinus",
+    x = "Oś X",
+    y = "Oś Y"
+  ) +
+  theme_minimal()
+```
+
+Przykładowa wizualizacja danych z datasetu.
+
+```{r}
+# Dane wbudowane w R
+data("ToothGrowth")
+
+# Przykładowy wykres skrzypcowy (violin plot)
+ggplot(ToothGrowth, aes(x = factor(dose), y = len, fill = factor(supp))) +
+  geom_violin(trim = FALSE, alpha = 0.7) +
+  labs(
+    title = "Długość zębów w zależności od dawki i suplementu",
+    x = "Dawka",
+    y = "Długość"
+  ) +
+  theme_minimal()
+```
+
+---
+
+# 2. Interaktywne Wizualizacje
+
+## Plotly
+
+Biblioteka `plotly` pozwala tworzyć interaktywne wykresy.
+
+```{r}
+library(plotly)
+
+# Dane wbudowane
+df <- iris
+
+fig <- plot_ly(
+  data = df,
+  x = ~Sepal.Width,
+  y = ~Sepal.Length,
+  color = ~Species,
+  type = "scatter",
+  mode = "markers"
+) %>%
+  layout(title = "Interaktywny wykres Iris")
+
+fig
+```
+
+---
+
+# 3. Szybkie i Proste – Wykresy wbudowane
+
+W R możemy użyć prostych funkcji bazowych do tworzenia szybkich wizalizacji (np na potrzeby eksploracji danych).
+
+```{r}
+set.seed(123)
+df <- data.frame(
+  A = cumsum(rnorm(100)),
+  B = cumsum(rnorm(100)),
+  C = cumsum(rnorm(100)),
+  D = cumsum(rnorm(100))
+)
+
+matplot(df, type = "l", lty = 1, main = "Wykres bezpośrednio z danych",
+        xlab = "Indeks", ylab = "Wartość")
+legend("topleft", legend = names(df), col = 1:4, lty = 1)
+```
+
+---
+
+# 4. Wizualizacje Geoprzestrzenne (Mapy)
+
+Pakiet **leaflet** pozwala na tworzenie interaktywnych map.
+
+```{r}
+library(leaflet)
+
+# Mapa Krakowa
+leaflet() %>%
+  addTiles() %>%
+  setView(lng = 19.9450, lat = 50.0647, zoom = 13) %>%
+  addMarkers(
+    lng = 19.9369, lat = 50.0619,
+    popup = "Rynek Główny<br>Kraków",
+    label = "Kliknij, aby zobaczyć!"
+  ) %>%
+  addCircles(
+    lng = 19.9366, lat = 50.0549,
+    radius = 500,
+    color = "crimson",
+    fillOpacity = 0.5,
+    popup = "Zamek Królewski na Wawelu"
+  )
+```
+
+---
+
+# 5. Tworzenie Chmury Słów z Danych Internetowych
+
+Poniższy skrypt pobiera tekst ze strony AGH, oczyszcza go ze zbędnych elementów, usuwa stop-słowa i generuje mapę słów przy użyciu pakietów:
+
+- `rvest` – do pobierania i parsowania HTML,
+- `tm` i `SnowballC` – do przetwarzania tekstu,
+- `wordcloud2` – do generowania chmur słów.
+
+```{r}
+library(rvest)
+library(tm)
+library(SnowballC)
+library(wordcloud2)
+
+# 1. Pobranie i przetworzenie tekstu ze strony
+url <- "https://www.agh.edu.pl"
+page <- read_html(url)
+text <- page %>% html_nodes("p") %>% html_text() %>% paste(collapse = " ")
+
+# 2. Korpus tekstowy i czyszczenie
+docs <- Corpus(VectorSource(text))
+docs <- docs %>%
+  tm_map(content_transformer(tolower)) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removeWords, stopwords("en")) %>%
+  tm_map(stripWhitespace)
+
+# 3. Macierz częstości
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+word_freqs <- sort(rowSums(m), decreasing = TRUE)
+df_words <- data.frame(word = names(word_freqs), freq = word_freqs)
+
+# 4. Generowanie chmury słów
+wordcloud2(df_words, size = 1.2, color = "random-light", backgroundColor = "white")
+```
+
+> 💡 Jeśli pojawi się błąd dotyczący `stopwords("pl")`, możesz zamiast tego użyć `stopwords("en")` lub własnej listy stop-słów.
+
+---
+
+# 6. Pomysły na rozwinięcie
+
+- Wykonaj kilka różnych wykresów (np. punktowy, pudełkowy, histogram) aby zwizualizować dowolnie wybrane zmienne i zależności z danych nt stanu jakości powietrza z poprzednich zajęć.
+
+
+```{r}
+dane <- read_csv("dane/gios-pjp-data1.csv")
+names(dane) <- c("data", "PM25", "PM10", "NO2", "NO", "NOx", "CO", "C6H6")
+
+ggplot(dane, aes(x = data, y = PM25)) +
+  geom_line(size = 0.5) +
+  geom_point(size = 0.7) +
+  labs(x = "Data", y = "Poziom zanieczyszczenia", 
+       title = "Zanieczyszczenie PM25 w sierpniu") +
+  theme_minimal()
+
+ggplot(dane, aes(x = data, y = PM25)) +
+  geom_area() +
+  labs(x = "Data", y = "Poziom zanieczyszczenia", 
+       title = "Zanieczyszczenie PM25 w sierpniu") +
+  theme_minimal()
+```
+- Zastosuj inne źródło tekstu (np. artykuł z Wikipedii) i wygeneruj chmurę słów.
+
+```{r}
+
+# 1. Pobranie i przetworzenie tekstu ze strony
+url <- "https://pl.wikipedia.org/wiki/Ragdoll"
+page <- read_html(url)
+text <- page %>% html_nodes("p") %>% html_text() %>% paste(collapse = " ")
+
+# 2. Korpus tekstowy i czyszczenie
+docs <- Corpus(VectorSource(text))
+docs <- docs %>%
+  tm_map(content_transformer(tolower)) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removeWords, stopwords("en")) %>%
+  tm_map(removeWords, c("się", "nie", "że", "ale", "jest", "ich", "bez", "oraz", "jako")) %>%
+  tm_map(stripWhitespace)
+
+# 3. Macierz częstości
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+word_freqs <- sort(rowSums(m), decreasing = TRUE)
+df_words <- data.frame(word = names(word_freqs), freq = word_freqs)
+
+# 4. Generowanie chmury słów
+wordcloud2(df_words, size = 1.2, color=rep_len( c("pink","violet"), nrow(demoFreq) ), backgroundColor = "white")
+
+```
+
+- Użyj niestandardowych masek w `wordcloud2`.
+- Wykorzystaj `shiny`, aby stworzyć interaktywną aplikację z chmurą słów generowaną z dowolnego URL.
